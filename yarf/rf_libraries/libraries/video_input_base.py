@@ -329,13 +329,15 @@ class VideoInputBase(ABC):
             if "ocr_confidence" in region:
                 # Only RapidOCR provides OCR confidence
                 confidence = f"{region['ocr_confidence']:.2f}"
-                logger.debug(
+                log_image(
+                    image,
                     f"Found text matching '{text}' with confidence {confidence}, coincidence {coincidence}: '{region['text']}'",
                 )
                 continue
             # Tesseract does not provide OCR confidence, and "coincidence" is
             #  named "confidence" in that case
-            logger.debug(
+            log_image(
+                image,
                 f"Found text matching '{text}' with confidence {coincidence}: '{region['text']}'",
             )
 
@@ -398,7 +400,6 @@ class VideoInputBase(ABC):
             if text_matches:
                 return text_matches, cropped_image
 
-        log_image(cropped_image, "The image used for ocr was:")
         read_text = await self.read_text(cropped_image)
         raise ValueError(
             f"Timed out looking for '{text}' after '{timeout}' seconds. "
