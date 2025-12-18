@@ -11,6 +11,7 @@ import rapidfuzz
 from PIL import Image
 from rapidocr import RapidOCR
 from robot.api import logger
+from robot.libraries.BuiltIn import BuiltIn
 
 from yarf.rf_libraries.libraries.geometry.quad import Quad
 from yarf.vendor.RPA.core.geometry import Region
@@ -89,8 +90,6 @@ class RapidOCRReader:
         self,
         image: Image.Image | Path,
         text: str,
-        similarity_threshold: float = DEFAULT_SIMILARITY_THRESHOLD,
-        confidence_threshold: float = DEFAULT_CONFIDENCE_THRESHOLD,
         region: Region | None = None,
         partial: bool = True,
     ) -> list[dict]:
@@ -101,12 +100,6 @@ class RapidOCRReader:
         Args:
             image: Path to image or Image object.
             text: Text to find in image.
-            similarity_threshold: Minimum similarity percentage (0-100) for
-              text matching. If the similarity between the found text and the
-              target text is below this threshold, the match is discarded.
-            confidence_threshold: Minimum confidence percentage (0-100) for
-              text matching. If the confidence of the found text is below this
-              threshold, the match is discarded.
             region: Limit the region of the screen where to look.
             partial: Use partial matching.
 
@@ -116,6 +109,22 @@ class RapidOCRReader:
         Raises:
             ValueError: Empty search string.
         """
+        similarity_threshold = self.DEFAULT_SIMILARITY_THRESHOLD
+        confidence_threshold = self.DEFAULT_CONFIDENCE_THRESHOLD
+        similarity_threshold_str = BuiltIn().get_variable_value(
+            "${OCR_SIMILARITY_THRESHOLD}"
+        )
+        if similarity_threshold_str is not None:
+            similarity_threshold = float(similarity_threshold_str)
+        confidence_threshold_str = BuiltIn().get_variable_value(
+            "${OCR_CONFIDENCE_THRESHOLD}"
+        )
+        if confidence_threshold_str is not None:
+            confidence_threshold = float(confidence_threshold)
+        logger.debug(
+            f"OCR thresholds: similarity {similarity_threshold}, confidence {confidence_threshold}"
+        )
+
         image_obj = to_image(image)
         if region is not None:
             image_obj = image_obj.crop(region.as_tuple())  # type: ignore[union-attr]
