@@ -111,6 +111,22 @@ class RapidOCRReader:
         Raises:
             ValueError: Empty search string.
         """
+        similarity_threshold = self.DEFAULT_SIMILARITY_THRESHOLD
+        confidence_threshold = self.DEFAULT_CONFIDENCE_THRESHOLD
+        similarity_threshold_str = BuiltIn().get_variable_value(
+            "${OCR_SIMILARITY_THRESHOLD}"
+        )
+        if similarity_threshold_str is not None:
+            similarity_threshold = float(similarity_threshold_str)
+        confidence_threshold_str = BuiltIn().get_variable_value(
+            "${OCR_CONFIDENCE_THRESHOLD}"
+        )
+        if confidence_threshold_str is not None:
+            confidence_threshold = float(confidence_threshold)
+        logger.debug(
+            f"OCR thresholds: similarity {similarity_threshold}, confidence {confidence_threshold}"
+        )
+
         image_obj = to_image(image)
         if region is not None:
             image_obj = image_obj.crop(region.as_tuple())  # type: ignore[union-attr]
