@@ -121,9 +121,6 @@ class RapidOCRReader:
         )
         if confidence_threshold_str is not None:
             confidence_threshold = float(confidence_threshold)
-        logger.debug(
-            f"OCR thresholds: similarity {similarity_threshold}, confidence {confidence_threshold}"
-        )
 
         image_obj = to_image(image)
         if region is not None:
