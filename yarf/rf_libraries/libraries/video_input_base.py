@@ -395,6 +395,7 @@ class VideoInputBase(ABC):
                 )
             if text_matches:
                 return text_matches, cropped_image
+            time.sleep(0.1)
 
         read_text = await self.read_text(cropped_image)
         raise ValueError(
@@ -567,6 +568,7 @@ class VideoInputBase(ABC):
                 # have matched
                 if not accept_any:
                     return matches
+            time.sleep(0.1)
 
         if screenshot:
             for template in templates:
