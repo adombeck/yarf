@@ -450,6 +450,7 @@ class VideoInputBase(ABC):
 
             if text_matches:
                 return text_matches, cropped_image
+            time.sleep(0.1)
 
         read_text = await self.read_text(cropped_image)
 
@@ -587,6 +588,7 @@ class VideoInputBase(ABC):
                     self._grab_and_save_screenshot(), end_time - now
                 )
             except RuntimeError:
+                time.sleep(0.1)
                 continue
             matches = []
             for path, image in template_images.items():
@@ -606,6 +608,7 @@ class VideoInputBase(ABC):
                     # If we're performing match_all, and we fail to match any
                     # single template, move onto the next screenshot
                     if accept_any:
+                        time.sleep(0.1)
                         continue
                     else:
                         break
@@ -629,6 +632,7 @@ class VideoInputBase(ABC):
                 # have matched
                 if not accept_any:
                     return matches
+            time.sleep(0.1)
 
         if screenshot:
             for template in templates:
