@@ -96,6 +96,8 @@ class RapidOCRReader:
         text: str,
         region: Region | None = None,
         partial: bool = True,
+        similarity: float | None = None,
+        confidence: float | None = None,
     ) -> list[dict]:
         """
         Scan image for text and return a list of regions that contain it (or
@@ -106,6 +108,12 @@ class RapidOCRReader:
             text: Text to find in image.
             region: Limit the region of the screen where to look.
             partial: Use partial matching.
+            similarity: Minimum similarity percentage (0-100) for a match.
+              If None, falls back to ${OCR_SIMILARITY_THRESHOLD} or the
+              default threshold.
+            confidence: Minimum confidence percentage (0-100) for a match.
+              If None, falls back to ${OCR_CONFIDENCE_THRESHOLD} or the
+              default threshold.
 
         Returns:
             List of regions with text found in image.
@@ -148,7 +156,9 @@ class RapidOCRReader:
         for item in result:
             item.confidence *= 100
 
-        matches = self.get_matches(result, text, partial)
+        matches = self.get_matches(
+            result, text, partial, similarity, confidence
+        )
 
         if region is not None:
             for match in matches:
@@ -161,6 +171,8 @@ class RapidOCRReader:
         result: list[OCRResult],
         match_text: str,
         partial: bool,
+        similarity: float | None = None,
+        confidence: float | None = None,
     ) -> list[dict]:
         """
         Get matches from OCR results based on similarity and confidence.
@@ -169,6 +181,12 @@ class RapidOCRReader:
             result: List with the OCR results.
             match_text: Text to match.
             partial: Use partial matching.
+            similarity: Minimum similarity percentage (0-100) for a match.
+              If None, falls back to ${OCR_SIMILARITY_THRESHOLD} or the
+              default threshold.
+            confidence: Minimum confidence percentage (0-100) for a match.
+              If None, falls back to ${OCR_CONFIDENCE_THRESHOLD} or the
+              default threshold.
 
         Returns:
             List of OCR matches containing the text.
@@ -217,6 +235,8 @@ class RapidOCRReader:
                 BuiltIn().fail(
                     f"OCR_SIMILARITY_THRESHOLD must be a number, got {similarity_threshold_str}"
                 )
+        if similarity is not None:
+            similarity_threshold = similarity
 
         confidence_threshold = self.DEFAULT_CONFIDENCE_THRESHOLD
         confidence_threshold_str = BuiltIn().get_variable_value(
@@ -232,6 +252,8 @@ class RapidOCRReader:
                 BuiltIn().fail(
                     f"OCR_CONFIDENCE_THRESHOLD must be a number, got {confidence_threshold_str}"
                 )
+        if confidence is not None:
+            confidence_threshold = confidence
 
         matches = []
         for item in result:
