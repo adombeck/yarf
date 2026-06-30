@@ -456,6 +456,7 @@ class VideoInputBase(ABC):
         print(f"\nLooking for '{text}'")
         print(region)
         start_time = time.time()
+        last_ocr_read: str | None = None
         while time.time() - start_time < timeout:
             image = await self._grab_and_save_screenshot()
             # Save the cropped image for debugging
@@ -502,6 +503,18 @@ class VideoInputBase(ABC):
                         f" confidence threshold: {effective_conf})"
                     )
                 return text_matches, cropped_image
+
+            # Log what OCR reads when the content changes, to help diagnose
+            # issues with text not being found or only found after a long time.
+            read = await self.read_text(cropped_image)
+            if read != last_ocr_read:
+                elapsed = time.time() - start_time
+                indented = "\n".join(f"  {line}" for line in read.splitlines())
+                logger.debug(
+                    f"OCR reading changed after {elapsed:.0f}s"
+                    f" (waiting for '{text}'):\n{indented}"
+                )
+                last_ocr_read = read
             time.sleep(0.1)
 
         read_text = await self.read_text(cropped_image)
