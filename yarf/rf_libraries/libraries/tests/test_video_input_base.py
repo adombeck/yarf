@@ -777,7 +777,7 @@ class TestVideoInputBase:
         result = [
             {"text": "Hello", "region": Region(0, 0, 1, 1), "confidence": 0.9},
         ]
-        mock_time.side_effect = [0, 0.02, 0.05, 0.12]
+        mock_time.side_effect = [0, 0.02, 0.05, 0.05, 0.12]
         stub_videoinput.find_text = AsyncMock(side_effect=[[], result])
         stub_videoinput.grab_screenshot.return_value = image
 
@@ -903,7 +903,7 @@ class TestVideoInputBase:
         """
         Test the function raises an error if the text is not found.
         """
-        mock_time.side_effect = [0, 1, 11, 12]
+        mock_time.side_effect = [0, 1, 2, 11, 12]
         stub_videoinput.find_text = AsyncMock()
         stub_videoinput.find_text.return_value = []
         stub_videoinput.read_text = AsyncMock()
@@ -938,7 +938,7 @@ class TestVideoInputBase:
         """
         Test the function raises an error if the text is not found.
         """
-        mock_time.side_effect = [0, 1, 11, 12]
+        mock_time.side_effect = [0, 1, 2, 11, 12]
         stub_videoinput.find_text = AsyncMock()
         stub_videoinput.find_text.return_value = []
         stub_videoinput.read_text = AsyncMock()
