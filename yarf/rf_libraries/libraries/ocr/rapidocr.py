@@ -79,7 +79,8 @@ class RapidOCRReader:
         self.reader = RapidOCR(
             params={
                 "Det.model_type": ModelType.MOBILE,
-                "Det.ocr_version": OCRVersion.PPOCRV5,
+                # PP-OCRv5 detection splits terminal lines into words.
+                "Det.ocr_version": OCRVersion.PPOCRV4,
                 "Rec.model_type": ModelType.MOBILE,
                 "Rec.ocr_version": OCRVersion.PPOCRV5,
                 "Cls.model_type": ModelType.MOBILE,

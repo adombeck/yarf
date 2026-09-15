@@ -52,7 +52,7 @@ class TestRapidOCR:
         mock_reader.assert_called_once_with(
             params={
                 "Det.model_type": ModelType.MOBILE,
-                "Det.ocr_version": OCRVersion.PPOCRV5,
+                "Det.ocr_version": OCRVersion.PPOCRV4,
                 "Rec.model_type": ModelType.MOBILE,
                 "Rec.ocr_version": OCRVersion.PPOCRV5,
                 "Cls.model_type": ModelType.MOBILE,
