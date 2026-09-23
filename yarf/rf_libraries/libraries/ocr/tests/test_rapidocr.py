@@ -333,6 +333,72 @@ class TestRapidOCR:
 
         assert result == []
 
+    def test_get_matches_joined_wrapped_text(self, mock_reader):
+        query = (
+            'Authentication failure: requested username "different_user" '
+            "does not match the authenticated username"
+        )
+        items = [
+            OCRResult(
+                [[2, 25], [700, 25], [700, 45], [2, 45]],
+                '"different_user" does not match the authenticated username',
+                95,
+            ),
+            OCRResult(
+                [[2, 0], [500, 0], [500, 20], [2, 20]],
+                "Authentication failure: requested username",
+                96,
+            ),
+        ]
+        with patch(
+            "yarf.rf_libraries.libraries.ocr.rapidocr.BuiltIn.get_variable_value"
+        ) as mock_get_variable_value:
+            mock_get_variable_value.side_effect = lambda var, *a, **kw: {
+                "${OCR_CONFIDENCE_THRESHOLD}": 94,
+                "${OCR_SIMILARITY_THRESHOLD}": 92,
+            }.get(var)
+            result = RapidOCRReader.get_matches(
+                mock_reader, items, query, True
+            )
+
+        assert result == [
+            {
+                "text": query,
+                "region": Region(2, 0, 700, 45),
+                "similarity": 100,
+                "confidence": 95,
+            }
+        ]
+
+    def test_get_joined_results_returns_one_candidate_for_three_fragments(
+        self,
+    ):
+        items = [
+            OCRResult(
+                [[0, 25], [40, 25], [40, 45], [0, 45]],
+                "second",
+                92,
+            ),
+            OCRResult(
+                [[0, 0], [40, 0], [40, 20], [0, 20]],
+                "first",
+                95,
+            ),
+            OCRResult(
+                [[0, 50], [40, 50], [40, 70], [0, 70]],
+                "third",
+                88,
+            ),
+        ]
+
+        result = RapidOCRReader._get_joined_results(items)
+
+        assert len(result) == 1
+        assert result[0].text == "first second third"
+        assert result[0].confidence == 88
+        assert result[0].position.to_region() == Region(0, 0, 40, 70)
+
+
     @pytest.mark.parametrize(
         "input_text, result_text",
         [

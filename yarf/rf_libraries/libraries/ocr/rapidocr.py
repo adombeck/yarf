@@ -191,6 +191,70 @@ class RapidOCRReader:
 
         return matches
 
+    @staticmethod
+    def _get_joined_results(result: list[OCRResult]) -> list[OCRResult]:
+        """Build one candidate for each group of adjacent detections."""
+        # Cache the rectangular regions because sorting and joining both need
+        # the geometry, and converting each quadrilateral repeatedly is costly.
+        ordered = [
+            (item.position.to_region(), item)
+            for item in result
+        ]
+        ordered.sort(key=lambda item: (item[0].top, item[0].left))
+
+        # Emit one candidate for a contiguous group instead of overlapping
+        # prefix and suffix candidates from the same OCR detections.
+        groups: list[list[tuple[Region, OCRResult]]] = []
+        group: list[tuple[Region, OCRResult]] = []
+        for current_region, current in ordered:
+            if group:
+                previous_region = group[-1][0]
+                vertical_gap = max(
+                    current_region.top - previous_region.bottom,
+                    previous_region.top - current_region.bottom,
+                    0,
+                )
+                max_height = max(previous_region.height, current_region.height)
+                horizontal_gap = max(
+                    current_region.left - previous_region.right,
+                    previous_region.left - current_region.right,
+                    0,
+                )
+                if vertical_gap > 2 * max_height or (
+                    vertical_gap == 0 and horizontal_gap > 4 * max_height
+                ):
+                    if len(group) > 1:
+                        groups.append(group)
+                    group = []
+            group.append((current_region, current))
+
+        if len(group) > 1:
+            groups.append(group)
+
+        joined_results: list[OCRResult] = []
+        for group in groups:
+            text_parts = [item.text for _, item in group]
+            confidence = min(item.confidence for _, item in group)
+            left = min(region.left for region, _ in group)
+            top = min(region.top for region, _ in group)
+            right = max(region.right for region, _ in group)
+            bottom = max(region.bottom for region, _ in group)
+            joined_results.append(
+                OCRResult(
+                    position=Quad(
+                        [
+                            [left, top],
+                            [right, top],
+                            [right, bottom],
+                            [left, bottom],
+                        ]
+                    ),
+                    text=" ".join(text_parts),
+                    confidence=confidence,
+                )
+            )
+        return joined_results
+
     def get_matches(
         self,
         result: list[OCRResult],
@@ -246,6 +310,34 @@ class RapidOCRReader:
             # we don't match against a substring of the query
             return rapidfuzz.fuzz.ratio(q, text)
 
+        def collect_matches(items: list[OCRResult]) -> list[dict]:
+            collected_matches = []
+            for item in items:
+                item_similarity = (
+                    directional_ratio(match_text, item.text)
+                    if partial
+                    else rapidfuzz.fuzz.ratio(item.text, match_text)
+                )
+                if (
+                    item_similarity >= similarity_threshold
+                    and item.confidence >= confidence_threshold
+                ):
+                    collected_matches.append(
+                        {
+                            "text": item.text,
+                            "region": item.position.to_region(),
+                            "similarity": item_similarity,
+                            "confidence": item.confidence,
+                        }
+                    )
+                elif item_similarity >= self.SIMILARITY_LOG_THRESHOLD:
+                    rejected_logs.add(
+                        f"Rejected match for text '{match_text}' "
+                        f"with similarity {item_similarity} "
+                        f"and confidence {item.confidence}: '{item.text}'"
+                    )
+            return collected_matches
+
         if similarity is not None:
             RapidOCRReader._validate_threshold("similarity", similarity)
             similarity_threshold = similarity
@@ -280,30 +372,15 @@ class RapidOCRReader:
 
         matches = []
         rejected_logs: set[str] = set()
-        for item in result:
-            similarity = (
-                directional_ratio(match_text, item.text)
-                if partial
-                else rapidfuzz.fuzz.ratio(item.text, match_text)
+        matches = collect_matches(result)
+
+        # Joining is a recovery path for text split across OCR detections;
+        # avoid building joined candidates when an individual result matches.
+        if not matches:
+            matches = collect_matches(
+                RapidOCRReader._get_joined_results(result)
             )
-            if (
-                similarity >= similarity_threshold
-                and item.confidence >= confidence_threshold
-            ):
-                matches.append(
-                    {
-                        "text": item.text,
-                        "region": item.position.to_region(),
-                        "similarity": similarity,
-                        "confidence": item.confidence,
-                    }
-                )
-            elif similarity >= self.SIMILARITY_LOG_THRESHOLD:
-                rejected_logs.add(
-                    f"Rejected match for text '{match_text}' "
-                    f"with similarity {similarity} "
-                    f"and confidence {item.confidence}: '{item.text}'"
-                )
+
         # Only log rejected matches that weren't already logged last call,
         # to avoid repeating the same message every polling iteration.
         for msg in sorted(rejected_logs - self._last_rejected_logs):
